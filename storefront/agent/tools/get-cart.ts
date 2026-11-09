@@ -1,0 +1,27 @@
+import { defineTool } from "eve/tools";
+import { z } from "zod";
+
+import { getCart, getSessionCartId } from "../lib/cart";
+
+export default defineTool({
+  description:
+    "Read a minimal summary of the current cart before changing a line, discount code, or the note. Not needed after a successful change; the confirmation already shows the cart.",
+  inputSchema: z.strictObject({}),
+  execute: async (_input, ctx) => {
+    const cart = await getCart(getSessionCartId(ctx));
+    if (!cart) return { error: "Cart is unavailable. Refresh the storefront." };
+    return {
+      discountCodes: cart.discountCodes.map((discount) => discount.code),
+      empty: !cart.lines.nodes.length,
+      lines: cart.lines.nodes.map((line) => ({
+        lineId: line.id,
+        options: line.merchandise.selectedOptions.map((option) => option.value).join(" / "),
+        productTitle: line.merchandise.product.title,
+        quantity: line.quantity,
+        variantId: line.merchandise.id,
+      })),
+      note: cart.note || null,
+      totalQuantity: cart.totalQuantity,
+    };
+  },
+});
